@@ -1,0 +1,43 @@
+{
+  "name": "temp-link",
+  "version": "1.0.0",
+  "description": "A limited URL shortener with analytics and expiration features.",
+  "main": "dist/app.js",
+  "scripts": {
+    "start": "npm run build && node dist/app.js",
+    "dev": "ts-node src/app.ts",
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.50.0",
+    "bcrypt": "^5.1.1",
+    "cron": "^1.8.2",
+    "dotenv": "^8.2.0",
+    "ejs": "^3.1.6",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^3.0.2",
+    "stripe": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/express": "^4.17.11",
+    "@types/jest": "^26.0.24",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^14.14.31",
+    "@types/node-cron": "^3.0.4",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.4.0",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.1.2"
+  },
+  "keywords": [
+    "url",
+    "shortener",
+    "analytics",
+    "expiration"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
