@@ -1,10 +1,6 @@
+import { supabase } from "./supabase"
+
 export async function signUp(email: string, password: string, name: string) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error("Authentication not available in demo mode. Please configure Supabase.")
-  }
-
-  const { supabase } = await import("./supabase")
-
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -33,12 +29,6 @@ export async function signUp(email: string, password: string, name: string) {
 }
 
 export async function signIn(email: string, password: string) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error("Authentication not available in demo mode. Please configure Supabase.")
-  }
-
-  const { supabase } = await import("./supabase")
-
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -49,21 +39,11 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return
-  }
-
-  const { supabase } = await import("./supabase")
   const { error } = await supabase.auth.signOut()
   if (error) throw error
 }
 
 export async function getCurrentUser() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return null
-  }
-
-  const { supabase } = await import("./supabase")
   const {
     data: { user },
   } = await supabase.auth.getUser()

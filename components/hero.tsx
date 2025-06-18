@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Clock, Link2, Zap } from "lucide-react"
 import { isValidUrl } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
-import { DemoBanner } from "@/components/demo-banner"
 
 export function Hero() {
   const [url, setUrl] = useState("")
@@ -55,12 +54,13 @@ export function Hero() {
         setUrl("")
         setCustomSlug("")
       } else {
-        throw new Error("Failed to create link")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create link")
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create link. Please try again.",
+        description: error.message || "Failed to create link. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -70,8 +70,6 @@ export function Hero() {
 
   return (
     <section className="container mx-auto px-4 py-20">
-      <DemoBanner />
-
       <div className="text-center mb-12">
         <div className="flex items-center justify-center gap-2 mb-4">
           <Clock className="h-8 w-8 text-blue-600" />
