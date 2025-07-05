@@ -1,8 +1,20 @@
+"use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check, X } from "lucide-react"
+import { SignUpModal } from "@/components/auth/signup-modal"
 
 export function Pricing() {
+  const [isSignUpOpen, setIsSignUpOpen] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<"free" | "pro">("free")
+
+  const handlePlanSelect = (planType: "free" | "pro") => {
+    setSelectedPlan(planType)
+    setIsSignUpOpen(true)
+  }
+
   const plans = [
     {
       name: "Free",
@@ -89,6 +101,7 @@ export function Pricing() {
                 <Button
                   className={`w-full ${plan.popular ? "bg-blue-600 hover:bg-blue-700" : ""}`}
                   variant={plan.popular ? "default" : "outline"}
+                  onClick={() => handlePlanSelect(plan.name.toLowerCase() as "free" | "pro")}
                 >
                   {plan.cta}
                 </Button>
@@ -97,6 +110,7 @@ export function Pricing() {
           ))}
         </div>
       </div>
+      <SignUpModal isOpen={isSignUpOpen} onClose={() => setIsSignUpOpen(false)} selectedPlan={selectedPlan} />
     </section>
   )
 }

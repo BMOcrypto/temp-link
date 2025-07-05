@@ -1,6 +1,6 @@
 import { supabase } from "./supabase"
 
-export async function signUp(email: string, password: string, name: string) {
+export async function signUp(email: string, password: string, name: string, tier: "free" | "pro" = "free") {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -19,7 +19,7 @@ export async function signUp(email: string, password: string, name: string) {
       id: data.user.id,
       email: data.user.email!,
       name,
-      tier: "free",
+      tier,
     })
 
     if (insertError) throw insertError
