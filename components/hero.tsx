@@ -5,11 +5,9 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, Link2, Zap } from "lucide-react"
-import { isValidUrl } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 
 export function Hero() {
@@ -21,10 +19,10 @@ export function Hero() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!isValidUrl(url)) {
+    if (!url) {
       toast({
-        title: "Invalid URL",
-        description: "Please enter a valid URL starting with http:// or https://",
+        title: "Error",
+        description: "Please enter a URL to shorten",
         variant: "destructive",
       })
       return
@@ -40,27 +38,31 @@ export function Hero() {
         },
         body: JSON.stringify({
           originalUrl: url,
-          customSlug,
+          customSlug: customSlug || undefined,
           expiry,
         }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        toast({
-          title: "Link created!",
-          description: `Your temporary link: templink.io/${data.shortCode}`,
-        })
-        setUrl("")
-        setCustomSlug("")
-      } else {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to create link")
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create link")
       }
-    } catch (error: any) {
+
+      toast({
+        title: "Success!",
+        description: `Link created! Your temporary link: templink.io/${data.shortCode}`,
+      })
+
+      // Reset form
+      setUrl("")
+      setCustomSlug("")
+      setExpiry("24h")
+    } catch (error) {
+      console.error("Error creating link:", error)
       toast({
         title: "Error",
-        description: error.message || "Failed to create link. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create link",
         variant: "destructive",
       })
     } finally {
@@ -69,100 +71,103 @@ export function Hero() {
   }
 
   return (
-    <section className="container mx-auto px-4 py-20">
-      <div className="text-center mb-12">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <Clock className="h-8 w-8 text-blue-600" />
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            TempLink
+    <section className="relative py-20 px-4">
+      <div className="container mx-auto max-w-6xl">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">
+            Temporary Links That Expire
           </h1>
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Create time-limited URLs that automatically expire. Perfect for sharing sensitive content, temporary access,
+            or time-sensitive information.
+          </p>
         </div>
-        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          Create time-limited short links that automatically expire. Perfect for temporary sharing, event promotions,
-          and secure link distribution.
-        </p>
-      </div>
 
-      <Card className="max-w-2xl mx-auto mb-16">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Link2 className="h-5 w-5" />
-            Create Your Temporary Link
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="url">Original URL</Label>
-              <Input
-                id="url"
-                type="url"
-                placeholder="https://example.com/your-long-url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="max-w-2xl mx-auto mb-16 shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <Label htmlFor="slug">Custom Slug (Optional)</Label>
+                <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter your URL
+                </label>
                 <Input
-                  id="slug"
-                  placeholder="my-custom-link"
-                  value={customSlug}
-                  onChange={(e) => setCustomSlug(e.target.value)}
+                  id="url"
+                  type="url"
+                  placeholder="https://example.com/your-long-url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="text-lg py-3"
+                  required
                 />
               </div>
 
-              <div>
-                <Label htmlFor="expiry">Expires In</Label>
-                <Select value={expiry} onValueChange={setExpiry}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1h">1 Hour</SelectItem>
-                    <SelectItem value="6h">6 Hours</SelectItem>
-                    <SelectItem value="24h">24 Hours</SelectItem>
-                    <SelectItem value="7d">7 Days</SelectItem>
-                    <SelectItem value="30d">30 Days</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="slug" className="block text-sm font-medium text-gray-700 mb-2">
+                    Custom slug (optional)
+                  </label>
+                  <Input
+                    id="slug"
+                    placeholder="my-custom-link"
+                    value={customSlug}
+                    onChange={(e) => setCustomSlug(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="expiry" className="block text-sm font-medium text-gray-700 mb-2">
+                    Expires in
+                  </label>
+                  <Select value={expiry} onValueChange={setExpiry}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1h">1 Hour</SelectItem>
+                      <SelectItem value="6h">6 Hours</SelectItem>
+                      <SelectItem value="24h">24 Hours</SelectItem>
+                      <SelectItem value="7d">7 Days</SelectItem>
+                      <SelectItem value="30d">30 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              <Button
+                type="submit"
+                className="w-full text-lg py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                disabled={isLoading}
+              >
+                {isLoading ? "Creating..." : "Create Temporary Link"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Clock className="w-8 h-8 text-blue-600" />
             </div>
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              <Zap className="h-4 w-4 mr-2" />
-              {isLoading ? "Creating..." : "Create Temporary Link"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-        <div className="text-center">
-          <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-            <Clock className="h-8 w-8 text-blue-600" />
+            <h3 className="text-xl font-semibold mb-2">Time-Limited</h3>
+            <p className="text-gray-600">Set custom expiration times from 1 hour to 30 days</p>
           </div>
-          <h3 className="text-lg font-semibold mb-2">Time-Limited</h3>
-          <p className="text-gray-600">Set custom expiration dates and times for your links</p>
-        </div>
 
-        <div className="text-center">
-          <div className="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-            <Link2 className="h-8 w-8 text-purple-600" />
+          <div className="text-center">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Link2 className="w-8 h-8 text-purple-600" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Custom URLs</h3>
+            <p className="text-gray-600">Create memorable short links with custom slugs</p>
           </div>
-          <h3 className="text-lg font-semibold mb-2">Custom Slugs</h3>
-          <p className="text-gray-600">Create memorable short links with custom slugs</p>
-        </div>
 
-        <div className="text-center">
-          <div className="bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-            <Zap className="h-8 w-8 text-green-600" />
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Zap className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Analytics</h3>
+            <p className="text-gray-600">Track clicks, locations, and referrer data</p>
           </div>
-          <h3 className="text-lg font-semibold mb-2">Analytics</h3>
-          <p className="text-gray-600">Track clicks, referrers, and geographic data</p>
         </div>
       </div>
     </section>

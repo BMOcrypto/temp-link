@@ -3,16 +3,17 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Check, X } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Check, Star } from "lucide-react"
 import { SignUpModal } from "@/components/auth/signup-modal"
 
 export function Pricing() {
-  const [isSignUpOpen, setIsSignUpOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<"free" | "pro">("free")
 
-  const handlePlanSelect = (planType: "free" | "pro") => {
-    setSelectedPlan(planType)
-    setIsSignUpOpen(true)
+  const handlePlanSelect = (plan: "free" | "pro") => {
+    setSelectedPlan(plan)
+    setIsModalOpen(true)
   }
 
   const plans = [
@@ -20,97 +21,105 @@ export function Pricing() {
       name: "Free",
       price: "$0",
       period: "forever",
-      description: "Perfect for personal use",
+      description: "Perfect for personal use and trying out TempLink",
       features: [
-        { name: "10 active links per month", included: true },
-        { name: "Basic analytics", included: true },
-        { name: "Standard expiration options", included: true },
-        { name: "Community support", included: true },
-        { name: "Custom domains", included: false },
-        { name: "API access", included: false },
-        { name: "Advanced analytics", included: false },
-        { name: "Priority support", included: false },
+        "10 active links per month",
+        "Basic analytics (clicks, referrers)",
+        "Standard expiration options",
+        "Email support",
+        "HTTPS encryption",
       ],
-      cta: "Get Started",
+      buttonText: "Get Started",
       popular: false,
     },
     {
       name: "Pro",
       price: "$5",
       period: "per month",
-      description: "For professionals and businesses",
+      description: "For power users and businesses who need more",
       features: [
-        { name: "Unlimited links", included: true },
-        { name: "Advanced analytics", included: true },
-        { name: "Custom domains", included: true },
-        { name: "API access", included: true },
-        { name: "Geolocation data", included: true },
-        { name: "Device tracking", included: true },
-        { name: "Export reports", included: true },
-        { name: "Priority support", included: true },
+        "Unlimited links",
+        "Advanced analytics (geolocation, devices)",
+        "Custom domains",
+        "API access with authentication",
+        "Priority support",
+        "Bulk operations",
+        "Export data",
       ],
-      cta: "Start Pro Trial",
+      buttonText: "Start Pro Trial",
       popular: true,
     },
   ]
 
   return (
-    <section className="py-20 bg-gray-50">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold mb-4">Simple, Transparent Pricing</h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Choose the plan that fits your needs. Upgrade or downgrade at any time.
-          </p>
-        </div>
+    <>
+      <section id="pricing" className="py-20 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Choose the plan that fits your needs. Upgrade or downgrade at any time.
+            </p>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {plans.map((plan, index) => (
-            <Card key={index} className={`relative ${plan.popular ? "border-blue-500 shadow-lg" : ""}`}>
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {plans.map((plan, index) => (
+              <Card
+                key={index}
+                className={`relative border-2 ${
+                  plan.popular ? "border-purple-500 shadow-2xl scale-105" : "border-gray-200 shadow-lg"
+                }`}
+              >
+                {plan.popular && (
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-500 to-blue-500">
+                    <Star className="w-4 h-4 mr-1" />
                     Most Popular
-                  </span>
-                </div>
-              )}
+                  </Badge>
+                )}
 
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                <div className="mt-4">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-gray-600 ml-2">{plan.period}</span>
-                </div>
-                <p className="text-gray-600 mt-2">{plan.description}</p>
-              </CardHeader>
+                <CardHeader className="text-center pb-8">
+                  <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold">{plan.price}</span>
+                    <span className="text-gray-600 ml-2">/{plan.period}</span>
+                  </div>
+                  <p className="text-gray-600 mt-2">{plan.description}</p>
+                </CardHeader>
 
-              <CardContent>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center">
-                      {feature.included ? (
-                        <Check className="h-5 w-5 text-green-500 mr-3" />
-                      ) : (
-                        <X className="h-5 w-5 text-gray-400 mr-3" />
-                      )}
-                      <span className={feature.included ? "" : "text-gray-400"}>{feature.name}</span>
-                    </li>
-                  ))}
-                </ul>
+                <CardContent className="space-y-6">
+                  <ul className="space-y-3">
+                    {plan.features.map((feature, featureIndex) => (
+                      <li key={featureIndex} className="flex items-center">
+                        <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                        <span className="text-gray-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
 
-                <Button
-                  className={`w-full ${plan.popular ? "bg-blue-600 hover:bg-blue-700" : ""}`}
-                  variant={plan.popular ? "default" : "outline"}
-                  onClick={() => handlePlanSelect(plan.name.toLowerCase() as "free" | "pro")}
-                >
-                  {plan.cta}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  <Button
+                    className={`w-full text-lg py-3 ${
+                      plan.popular
+                        ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                        : "bg-gray-900 hover:bg-gray-800"
+                    }`}
+                    onClick={() => handlePlanSelect(plan.name.toLowerCase() as "free" | "pro")}
+                  >
+                    {plan.buttonText}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <p className="text-gray-600">
+              All plans include HTTPS encryption, automatic link expiration, and basic security features.
+            </p>
+          </div>
         </div>
-      </div>
-      <SignUpModal isOpen={isSignUpOpen} onClose={() => setIsSignUpOpen(false)} selectedPlan={selectedPlan} />
-    </section>
+      </section>
+
+      <SignUpModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} selectedPlan={selectedPlan} />
+    </>
   )
 }

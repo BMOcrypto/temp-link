@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Clock, Mail, Lock, User, X } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Star, User, Mail, Lock } from "lucide-react"
 import { signUp } from "@/lib/auth"
 import { toast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 
 interface SignUpModalProps {
   isOpen: boolean
@@ -18,34 +20,68 @@ interface SignUpModalProps {
 }
 
 export function SignUpModal({ isOpen, onClose, selectedPlan }: SignUpModalProps) {
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  })
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (formData.password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      await signUp(email, password, name, selectedPlan)
+      await signUp(formData.email, formData.password, formData.name, selectedPlan)
+
       toast({
-        title: "Account created successfully!",
-        description: `Welcome to TempLink ${selectedPlan === "pro" ? "Pro" : "Free"}! Please check your email to verify your account.`,
+        title: "Success!",
+        description: `Welcome to TempLink ${selectedPlan === "pro" ? "Pro" : ""}! Please check your email to verify your account.`,
       })
 
       // Reset form
-      setName("")
-      setEmail("")
-      setPassword("")
-      onClose()
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      })
 
-      // Redirect to dashboard after successful signup
-      window.location.href = "/dashboard"
-    } catch (error: any) {
+      onClose()
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Signup error:", error)
       toast({
-        title: "Sign up failed",
-        description: error.message || "Please try again.",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create account",
         variant: "destructive",
       })
     } finally {
@@ -57,74 +93,63 @@ export function SignUpModal({ isOpen, onClose, selectedPlan }: SignUpModalProps)
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="h-6 w-6 text-blue-600" />
-              <DialogTitle className="text-xl font-bold">Join TempLink</DialogTitle>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="text-center">
-            <div
-              className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
-                selectedPlan === "pro" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"
-              }`}
+          <DialogTitle className="text-center text-2xl font-bold">Create Your Account</DialogTitle>
+          <div className="text-center mt-2">
+            <Badge
+              className={`${selectedPlan === "pro" ? "bg-gradient-to-r from-purple-500 to-blue-500" : "bg-gray-600"}`}
             >
-              {selectedPlan === "pro" ? "Pro Plan - $5/month" : "Free Plan"}
-            </div>
-            <p className="text-gray-600 mt-2">
-              {selectedPlan === "pro"
-                ? "Get unlimited links and advanced analytics"
-                : "Start with 10 free links per month"}
-            </p>
+              {selectedPlan === "pro" && <Star className="w-4 h-4 mr-1" />}
+              {selectedPlan === "pro" ? "Pro Plan" : "Free Plan"}
+            </Badge>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="modal-name">Full Name</Label>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
             <div className="relative">
               <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                id="modal-name"
+                id="name"
+                name="name"
                 type="text"
-                placeholder="Enter your full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                placeholder="John Doe"
+                value={formData.name}
+                onChange={handleInputChange}
                 className="pl-10"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="modal-email">Email</Label>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                id="modal-email"
+                id="email"
+                name="email"
                 type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="john@example.com"
+                value={formData.email}
+                onChange={handleInputChange}
                 className="pl-10"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="modal-password">Password</Label>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                id="modal-password"
+                id="password"
+                name="password"
                 type="password"
-                placeholder="Create a password (min. 6 characters)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleInputChange}
                 className="pl-10"
                 required
                 minLength={6}
@@ -132,40 +157,48 @@ export function SignUpModal({ isOpen, onClose, selectedPlan }: SignUpModalProps)
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="flex-1 bg-transparent"
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className={`flex-1 ${selectedPlan === "pro" ? "bg-blue-600 hover:bg-blue-700" : ""}`}
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating account..." : `Start ${selectedPlan === "pro" ? "Pro Trial" : "Free Plan"}`}
-            </Button>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                className="pl-10"
+                required
+                minLength={6}
+              />
+            </div>
           </div>
+
+          <Button
+            type="submit"
+            className={`w-full ${
+              selectedPlan === "pro"
+                ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                : "bg-gray-900 hover:bg-gray-800"
+            }`}
+            disabled={isLoading}
+          >
+            {isLoading ? "Creating Account..." : `Create ${selectedPlan === "pro" ? "Pro" : "Free"} Account`}
+          </Button>
         </form>
 
-        <div className="text-center text-sm text-gray-600 border-t pt-4">
-          <p>
-            Already have an account?{" "}
-            <button
-              type="button"
-              onClick={() => {
-                onClose()
-                window.location.href = "/auth/signin"
-              }}
-              className="text-blue-600 hover:underline"
-            >
-              Sign in
-            </button>
-          </p>
+        <div className="text-center text-sm text-gray-600 mt-4">
+          Already have an account?{" "}
+          <button
+            onClick={() => {
+              onClose()
+              router.push("/auth/signin")
+            }}
+            className="text-blue-600 hover:underline"
+          >
+            Sign in
+          </button>
         </div>
       </DialogContent>
     </Dialog>
