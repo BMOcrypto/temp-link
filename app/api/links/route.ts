@@ -1,78 +1,75 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase"
-import { generateShortCode } from "@/lib/utils"
+import { generateShortCode, isValidUrl } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
+  // -------- 1. Safe-parse the body --------
+  let payload: Record<string, unknown> | null = null
   try {
-    const { originalUrl, customSlug, expiry } = await request.json()
-
-    if (!originalUrl) {
-      return NextResponse.json({ error: "Original URL is required" }, { status: 400 })
-    }
-
-    const supabase = createServerClient()
-
-    // Calculate expiration date
-    const now = new Date()
-    let expiresAt: Date
-
-    switch (expiry) {
-      case "1h":
-        expiresAt = new Date(now.getTime() + 60 * 60 * 1000)
-        break
-      case "6h":
-        expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000)
-        break
-      case "24h":
-        expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-        break
-      case "7d":
-        expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-        break
-      case "30d":
-        expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-        break
-      default:
-        expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    }
-
-    // Generate short code
-    const shortCode = customSlug || generateShortCode()
-
-    // Check if short code already exists
-    const { data: existing } = await supabase.from("links").select("id").eq("short_code", shortCode).single()
-
-    if (existing) {
-      return NextResponse.json({ error: "Short code already exists" }, { status: 409 })
-    }
-
-    // Create the link
-    const { data, error } = await supabase
-      .from("links")
-      .insert({
-        original_url: originalUrl,
-        short_code: shortCode,
-        custom_slug: customSlug,
-        expires_at: expiresAt.toISOString(),
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to create link" }, { status: 500 })
-    }
-
-    return NextResponse.json({
-      shortCode,
-      originalUrl,
-      expiresAt: expiresAt.toISOString(),
-      id: data.id,
-    })
-  } catch (error) {
-    console.error("API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    const raw = await request.text()
+    payload = raw ? (JSON.parse(raw) as Record<string, unknown>) : null
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
   }
+
+  if (!payload) {
+    return NextResponse.json({ error: "Request body is required" }, { status: 400 })
+  }
+
+  // -------- 2. Extract & validate fields --------
+  const originalUrl = payload.originalUrl as string | undefined
+  const customSlug = (payload.customSlug as string | undefined)?.trim() || undefined
+  const expiry = (payload.expiry as string | undefined) ?? "24h"
+
+  if (!originalUrl || !isValidUrl(originalUrl)) {
+    return NextResponse.json({ error: "originalUrl must be a valid URL" }, { status: 400 })
+  }
+
+  const supabase = createServerClient()
+
+  // -------- 3. Compute expiration --------
+  const now = new Date()
+  const expiryMap: Record<string, number> = {
+    "1h": 1,
+    "6h": 6,
+    "24h": 24,
+    "7d": 24 * 7,
+    "30d": 24 * 30,
+  }
+  const hours = expiryMap[expiry] ?? 24
+  const expiresAt = new Date(now.getTime() + hours * 60 * 60 * 1000)
+
+  // -------- 4. Generate / validate shortCode --------
+  const shortCode = customSlug || generateShortCode()
+  const { data: existing } = await supabase.from("links").select("id").eq("short_code", shortCode).maybeSingle()
+
+  if (existing) {
+    return NextResponse.json({ error: "Short code already exists" }, { status: 409 })
+  }
+
+  // -------- 5. Insert row --------
+  const { data, error } = await supabase
+    .from("links")
+    .insert({
+      original_url: originalUrl,
+      short_code: shortCode,
+      custom_slug: customSlug,
+      expires_at: expiresAt.toISOString(),
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Supabase error:", error)
+    return NextResponse.json({ error: "Failed to create link" }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    id: data.id,
+    shortCode,
+    originalUrl,
+    expiresAt: expiresAt.toISOString(),
+  })
 }
 
 export async function GET(request: NextRequest) {
@@ -81,20 +78,11 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId")
 
     const supabase = createServerClient()
+    const query = supabase.from("links").select("*").order("created_at", { ascending: false }).maybeSingle()
 
-    let query = supabase.from("links").select("*").order("created_at", { ascending: false })
+    const { data, error } = userId ? await query.eq("user_id", userId) : await query
 
-    if (userId) {
-      query = query.eq("user_id", userId)
-    }
-
-    const { data, error } = await query
-
-    if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to fetch links" }, { status: 500 })
-    }
-
+    if (error) throw error
     return NextResponse.json(data)
   } catch (error) {
     console.error("API error:", error)
