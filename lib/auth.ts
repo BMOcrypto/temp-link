@@ -1,6 +1,8 @@
-import { supabase } from "./supabase"
+import { getSupabaseClient } from "./supabase"
 
 export async function signUp(email: string, password: string, name: string, tier: "free" | "pro" = "free") {
+  const supabase = getSupabaseClient()
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -29,6 +31,7 @@ export async function signUp(email: string, password: string, name: string, tier
 }
 
 export async function signIn(email: string, password: string) {
+  const supabase = getSupabaseClient()
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -39,11 +42,13 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
+  const supabase = getSupabaseClient()
   const { error } = await supabase.auth.signOut()
   if (error) throw error
 }
 
 export async function getCurrentUser() {
+  const supabase = getSupabaseClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
