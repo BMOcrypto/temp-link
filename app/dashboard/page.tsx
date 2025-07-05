@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation"
 import { getCurrentUser } from "@/lib/auth"
+import { createServerClient } from "@/lib/supabase"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { LinksTable } from "@/components/dashboard/links-table"
 import { CreateLinkForm } from "@/components/dashboard/create-link-form"
+import { BillingCard } from "@/components/dashboard/billing-card"
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
@@ -11,6 +13,10 @@ export default async function DashboardPage() {
   if (!user) {
     redirect("/auth/signin")
   }
+
+  // Get user data from our database
+  const supabase = createServerClient()
+  const { data: userData } = await supabase.from("users").select("*").eq("id", user.id).single()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -28,8 +34,13 @@ export default async function DashboardPage() {
             <LinksTable />
           </div>
 
-          <div>
+          <div className="space-y-6">
             <CreateLinkForm />
+            <BillingCard
+              userTier={userData?.tier || "free"}
+              subscriptionStatus={userData?.subscription_status}
+              userId={user.id}
+            />
           </div>
         </div>
       </main>

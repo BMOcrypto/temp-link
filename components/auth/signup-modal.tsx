@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Star, User, Mail, Lock } from "lucide-react"
+import { Star, User, Mail, Lock, CreditCard } from "lucide-react"
 import { signUp } from "@/lib/auth"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
@@ -60,11 +60,36 @@ export function SignUpModal({ isOpen, onClose, selectedPlan }: SignUpModalProps)
     setIsLoading(true)
 
     try {
-      await signUp(formData.email, formData.password, formData.name, selectedPlan)
+      const { user } = await signUp(formData.email, formData.password, formData.name, "free")
+
+      if (selectedPlan === "pro" && user) {
+        // Redirect to Stripe checkout for Pro plan
+        const response = await fetch("/api/create-checkout-session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || "price_1234567890",
+            userId: user.id,
+            email: formData.email,
+          }),
+        })
+
+        const { sessionId } = await response.json()
+
+        if (sessionId) {
+          // Redirect to Stripe Checkout
+          const stripe = (await import("@stripe/stripe-js")).loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+          const stripeInstance = await stripe
+          await stripeInstance?.redirectToCheckout({ sessionId })
+          return
+        }
+      }
 
       toast({
         title: "Success!",
-        description: `Welcome to TempLink ${selectedPlan === "pro" ? "Pro" : ""}! Please check your email to verify your account.`,
+        description: `Welcome to TempLink! Please check your email to verify your account.`,
       })
 
       // Reset form
@@ -99,9 +124,17 @@ export function SignUpModal({ isOpen, onClose, selectedPlan }: SignUpModalProps)
               className={`${selectedPlan === "pro" ? "bg-gradient-to-r from-purple-500 to-blue-500" : "bg-gray-600"}`}
             >
               {selectedPlan === "pro" && <Star className="w-4 h-4 mr-1" />}
-              {selectedPlan === "pro" ? "Pro Plan" : "Free Plan"}
+              {selectedPlan === "pro" ? "Pro Plan - $5/month" : "Free Plan"}
             </Badge>
           </div>
+          {selectedPlan === "pro" && (
+            <div className="text-center mt-2">
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                <CreditCard className="w-4 h-4" />
+                <span>You'll be redirected to secure payment after signup</span>
+              </div>
+            </div>
+          )}
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -184,7 +217,7 @@ export function SignUpModal({ isOpen, onClose, selectedPlan }: SignUpModalProps)
             }`}
             disabled={isLoading}
           >
-            {isLoading ? "Creating Account..." : `Create ${selectedPlan === "pro" ? "Pro" : "Free"} Account`}
+            {isLoading ? "Creating Account..." : selectedPlan === "pro" ? "Continue to Payment" : "Create Free Account"}
           </Button>
         </form>
 
@@ -200,6 +233,12 @@ export function SignUpModal({ isOpen, onClose, selectedPlan }: SignUpModalProps)
             Sign in
           </button>
         </div>
+
+        {selectedPlan === "pro" && (
+          <div className="text-xs text-gray-500 text-center mt-2">
+            Secure payment powered by Stripe. Cancel anytime.
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )
