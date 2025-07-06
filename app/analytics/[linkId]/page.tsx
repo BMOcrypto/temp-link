@@ -6,18 +6,9 @@ import { ArrowLeft, ExternalLink, Copy, Calendar, MousePointer, Globe } from "lu
 import { formatTimeRemaining } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
 import Link from "next/link"
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts"
+import { GeographicMap } from "@/components/analytics/geographic-map"
+import { TimeAnalytics } from "@/components/analytics/time-analytics"
+import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 
 interface Props {
   params: {
@@ -82,7 +73,7 @@ export default function AnalyticsPage({ params }: Props) {
 
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Link Analytics</h1>
+              <h1 className="text-3xl font-bold mb-2">Advanced Analytics</h1>
               <div className="flex items-center gap-4">
                 <code className="bg-gray-100 px-3 py-1 rounded text-sm">templink.io/{linkData.shortCode}</code>
                 <Button variant="outline" size="sm" onClick={() => copyToClipboard(linkData.shortCode)}>
@@ -148,24 +139,12 @@ export default function AnalyticsPage({ params }: Props) {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Clicks Over Time</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={clicksOverTime}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="clicks" stroke="#3B82F6" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <TimeAnalytics linkId={params.linkId} />
+          <GeographicMap linkId={params.linkId} />
+        </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <Card>
             <CardHeader>
               <CardTitle>Traffic Sources</CardTitle>
@@ -215,34 +194,6 @@ export default function AnalyticsPage({ params }: Props) {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Link Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Original URL</label>
-                <p className="text-sm break-all">{linkData.originalUrl}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Created</label>
-                <p className="text-sm">{new Date(linkData.createdAt).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Expires</label>
-                <p className="text-sm">{new Date(linkData.expiresAt).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Status</label>
-                <div className="mt-1">
-                  <Badge variant={linkData.isActive ? "default" : "secondary"}>
-                    {linkData.isActive ? "Active" : "Expired"}
-                  </Badge>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
