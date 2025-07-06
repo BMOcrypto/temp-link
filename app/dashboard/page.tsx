@@ -6,6 +6,11 @@ import { StatsCards } from "@/components/dashboard/stats-cards"
 import { LinksTable } from "@/components/dashboard/links-table"
 import { CreateLinkForm } from "@/components/dashboard/create-link-form"
 import { BillingCard } from "@/components/dashboard/billing-card"
+import { ApiKeys } from "@/components/dashboard/api-keys"
+import { BulkOperations } from "@/components/dashboard/bulk-operations"
+import { QRCodeGenerator } from "@/components/dashboard/qr-code-generator"
+import { LinkPreview } from "@/components/dashboard/link-preview"
+import { UsageAnalytics } from "@/components/dashboard/usage-analytics"
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
@@ -36,11 +41,23 @@ export default async function DashboardPage() {
 
           <div className="space-y-6">
             <CreateLinkForm />
+            <UsageAnalytics userTier={userData?.tier || "free"} />
             <BillingCard
               userTier={userData?.tier || "free"}
               subscriptionStatus={userData?.subscription_status}
               userId={user.id}
             />
+          </div>
+        </div>
+
+        {/* Pro Features Section */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-6">Advanced Tools</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <ApiKeys userTier={userData?.tier || "free"} userId={user.id} />
+            <BulkOperations userTier={userData?.tier || "free"} />
+            <QRCodeGenerator />
+            <LinkPreview />
           </div>
         </div>
       </main>
