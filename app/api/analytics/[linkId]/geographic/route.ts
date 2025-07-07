@@ -9,8 +9,8 @@ export async function GET(request: NextRequest, { params }: { params: { linkId: 
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { linkId } = params
     const supabase = createServerClient()
+    const { linkId } = params
 
     // Verify link belongs to user
     const { data: link } = await supabase.from("links").select("id").eq("id", linkId).eq("user_id", user.id).single()
@@ -20,94 +20,81 @@ export async function GET(request: NextRequest, { params }: { params: { linkId: 
     }
 
     // Get geographic data from clicks
-    const { data: clicks } = await supabase
+    const { data: clickData, error } = await supabase
       .from("clicks")
-      .select("country")
+      .select("country, country_code")
       .eq("link_id", linkId)
       .not("country", "is", null)
 
-    if (!clicks || clicks.length === 0) {
-      return NextResponse.json([])
+    if (error) {
+      throw error
     }
 
-    // Count clicks by country
-    const countryMap = new Map<string, number>()
-    clicks.forEach((click) => {
-      if (click.country) {
-        countryMap.set(click.country, (countryMap.get(click.country) || 0) + 1)
+    // Process geographic data
+    const countryStats = new Map()
+    let totalClicks = 0
+
+    clickData?.forEach((click) => {
+      const country = click.country || "Unknown"
+      const countryCode = click.country_code || "XX"
+
+      if (countryStats.has(country)) {
+        countryStats.set(country, {
+          ...countryStats.get(country),
+          clicks: countryStats.get(country).clicks + 1,
+        })
+      } else {
+        countryStats.set(country, {
+          country,
+          countryCode,
+          clicks: 1,
+          flag: getCountryFlag(countryCode),
+        })
       }
+      totalClicks++
     })
 
-    const totalClicks = clicks.length
-
-    // Convert to array and sort by clicks
-    const geoData = Array.from(countryMap.entries())
-      .map(([countryCode, clickCount]) => ({
-        country: getCountryName(countryCode),
-        countryCode,
-        clicks: clickCount,
-        percentage: (clickCount / totalClicks) * 100,
+    // Convert to array and calculate percentages
+    const countries = Array.from(countryStats.values())
+      .map((country) => ({
+        ...country,
+        percentage: totalClicks > 0 ? (country.clicks / totalClicks) * 100 : 0,
       }))
       .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 10) // Top 10 countries
 
-    return NextResponse.json(geoData)
+    return NextResponse.json({
+      countries,
+      totalClicks,
+    })
   } catch (error) {
     console.error("Geographic analytics error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-function getCountryName(countryCode: string): string {
-  const countries: Record<string, string> = {
-    US: "United States",
-    GB: "United Kingdom",
-    CA: "Canada",
-    DE: "Germany",
-    FR: "France",
-    JP: "Japan",
-    AU: "Australia",
-    BR: "Brazil",
-    IN: "India",
-    CN: "China",
-    RU: "Russia",
-    IT: "Italy",
-    ES: "Spain",
-    NL: "Netherlands",
-    SE: "Sweden",
-    NO: "Norway",
-    DK: "Denmark",
-    FI: "Finland",
-    CH: "Switzerland",
-    AT: "Austria",
-    BE: "Belgium",
-    IE: "Ireland",
-    PT: "Portugal",
-    PL: "Poland",
-    CZ: "Czech Republic",
-    HU: "Hungary",
-    GR: "Greece",
-    TR: "Turkey",
-    IL: "Israel",
-    AE: "United Arab Emirates",
-    SA: "Saudi Arabia",
-    EG: "Egypt",
-    ZA: "South Africa",
-    NG: "Nigeria",
-    KE: "Kenya",
-    MX: "Mexico",
-    AR: "Argentina",
-    CL: "Chile",
-    CO: "Colombia",
-    PE: "Peru",
-    VE: "Venezuela",
-    KR: "South Korea",
-    TH: "Thailand",
-    VN: "Vietnam",
-    MY: "Malaysia",
-    SG: "Singapore",
-    ID: "Indonesia",
-    PH: "Philippines",
-    NZ: "New Zealand",
+function getCountryFlag(countryCode: string): string {
+  const flagMap: Record<string, string> = {
+    US: "🇺🇸",
+    GB: "🇬🇧",
+    CA: "🇨🇦",
+    DE: "🇩🇪",
+    FR: "🇫🇷",
+    JP: "🇯🇵",
+    AU: "🇦🇺",
+    BR: "🇧🇷",
+    IN: "🇮🇳",
+    CN: "🇨🇳",
+    IT: "🇮🇹",
+    ES: "🇪🇸",
+    NL: "🇳🇱",
+    SE: "🇸🇪",
+    NO: "🇳🇴",
+    DK: "🇩🇰",
+    FI: "🇫🇮",
+    CH: "🇨🇭",
+    AT: "🇦🇹",
+    BE: "🇧🇪",
   }
-  return countries[countryCode] || countryCode
+  return flagMap[countryCode] || "🌍"
 }
