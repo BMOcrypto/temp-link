@@ -1,196 +1,122 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Plus, Copy, ExternalLink } from "lucide-react"
-import { isValidUrl } from "@/lib/utils"
-import { toast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
+import { nanoid } from "nanoid"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { sendUsageLimitWarning } from "@/lib/email" // Add this import at the top
 
-export function CreateLinkForm() {
-  const [formData, setFormData] = useState({
-    url: "",
-    customSlug: "",
-    expiry: "24h",
-    title: "",
-    isNsfw: false,
+const linkSchema = z.object({
+  longUrl: z.string().url({ message: "Please enter a valid URL." }),
+})
+
+export default function CreateLinkForm() {
+  const [isCreating, setIsCreating] = useState(false)
+  const { toast } = useToast()
+  const { data: session } = useSession()
+  const router = useRouter()
+
+  const form = useForm<z.infer<typeof linkSchema>>({
+    resolver: zodResolver(linkSchema),
+    defaultValues: {
+      longUrl: "",
+    },
   })
-  const [isLoading, setIsLoading] = useState(false)
-  const [createdLink, setCreatedLink] = useState<string | null>(null)
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!isValidUrl(formData.url)) {
-      toast({
-        title: "Invalid URL",
-        description: "Please enter a valid URL starting with http:// or https://",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsLoading(true)
+  async function onSubmit(values: z.infer<typeof linkSchema>) {
+    setIsCreating(true)
+    const supabase = createClientComponentClient()
+    const shortUrl = nanoid(7)
 
     try {
-      const response = await fetch("/api/links", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          originalUrl: formData.url,
-          customSlug: formData.customSlug || undefined,
-          expiry: formData.expiry,
-          title: formData.title || undefined,
-          isNsfw: formData.isNsfw,
-        }),
-      })
+      const { error } = await supabase
+        .from("links")
+        .insert({
+          long_url: values.longUrl,
+          short_url: shortUrl,
+          user_id: session?.user?.id,
+        })
+        .single()
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create link")
+      if (error) {
+        throw new Error(error.message)
       }
-
-      const shortUrl = `${window.location.origin}/${data.shortCode}`
-      setCreatedLink(shortUrl)
 
       toast({
         title: "Success!",
-        description: "Your temporary link has been created successfully.",
+        description: "Link created successfully.",
       })
 
-      // Reset form
-      setFormData({
-        url: "",
-        customSlug: "",
-        expiry: "24h",
-        title: "",
-        isNsfw: false,
-      })
-    } catch (error) {
-      console.error("Error creating link:", error)
+      router.refresh()
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create link",
+        title: "Error!",
+        description: error.message,
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsCreating(false)
+
+      // In the handleSubmit function, after successful link creation, add usage check:
+      if (session?.user) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("links_created_this_month, tier, name, email")
+          .eq("id", session.user.id)
+          .single()
+
+        if (userData) {
+          const limit = userData.tier === "pro" ? Number.POSITIVE_INFINITY : 100
+          const usage = userData.links_created_this_month || 0
+          const percentage = Math.round((usage / limit) * 100)
+
+          // Send warning email at 80% and 95% usage
+          if (percentage >= 80 && (percentage === 80 || percentage === 95)) {
+            try {
+              await sendUsageLimitWarning({
+                to: userData.email,
+                userName: userData.name,
+                currentUsage: usage,
+                limit,
+                percentage,
+              })
+            } catch (emailError) {
+              console.error("Failed to send usage warning email:", emailError)
+            }
+          }
+        }
+      }
     }
   }
 
-  const copyToClipboard = (url: string) => {
-    navigator.clipboard.writeText(url)
-    toast({
-      title: "Copied!",
-      description: "Link copied to clipboard",
-    })
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          Create New Link
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {createdLink && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-sm font-medium text-green-800 mb-2">Link Created Successfully!</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-sm bg-white px-2 py-1 rounded border text-green-700">{createdLink}</code>
-              <Button size="sm" variant="outline" onClick={() => copyToClipboard(createdLink)}>
-                <Copy className="h-3 w-3" />
-              </Button>
-              <Button size="sm" variant="outline" asChild>
-                <a href={createdLink} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </Button>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="url">Original URL *</Label>
-            <Input
-              id="url"
-              type="url"
-              placeholder="https://example.com/your-long-url"
-              value={formData.url}
-              onChange={(e) => handleInputChange("url", e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="title">Title (Optional)</Label>
-            <Input
-              id="title"
-              placeholder="My Important Link"
-              value={formData.title}
-              onChange={(e) => handleInputChange("title", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="slug">Custom Slug (Optional)</Label>
-            <Input
-              id="slug"
-              placeholder="my-custom-link"
-              value={formData.customSlug}
-              onChange={(e) => handleInputChange("customSlug", e.target.value)}
-            />
-            <p className="text-xs text-gray-500 mt-1">Leave empty for auto-generated slug</p>
-          </div>
-
-          <div>
-            <Label htmlFor="expiry">Expires In</Label>
-            <Select value={formData.expiry} onValueChange={(value) => handleInputChange("expiry", value)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1h">1 Hour</SelectItem>
-                <SelectItem value="6h">6 Hours</SelectItem>
-                <SelectItem value="24h">24 Hours</SelectItem>
-                <SelectItem value="7d">7 Days</SelectItem>
-                <SelectItem value="30d">30 Days</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="nsfw"
-              checked={formData.isNsfw}
-              onCheckedChange={(checked) => handleInputChange("isNsfw", checked)}
-            />
-            <Label htmlFor="nsfw" className="text-sm">
-              Mark as NSFW (Not Safe For Work)
-            </Label>
-          </div>
-
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating..." : "Create Link"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="longUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Long URL</FormLabel>
+              <FormControl>
+                <Input placeholder="https://www.example.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" disabled={isCreating}>
+          {isCreating ? "Creating..." : "Create Link"}
+        </Button>
+      </form>
+    </Form>
   )
 }

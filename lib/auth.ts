@@ -62,10 +62,28 @@ export async function getCurrentUser() {
 
 export async function resetPassword(email: string) {
   const supabase = getSupabaseClient()
+
+  // First, check if user exists
+  const { data: userData } = await supabase.from("users").select("name").eq("email", email).single()
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/auth/reset-password`,
   })
+
   if (error) throw error
+
+  // Send custom password reset email
+  try {
+    const { sendPasswordReset } = await import("./email")
+    await sendPasswordReset({
+      to: email,
+      resetUrl: `${window.location.origin}/auth/reset-password`,
+      userName: userData?.name,
+    })
+  } catch (emailError) {
+    console.error("Failed to send password reset email:", emailError)
+    // Don't throw error here as the auth reset was successful
+  }
 }
 
 export async function updatePassword(password: string) {
